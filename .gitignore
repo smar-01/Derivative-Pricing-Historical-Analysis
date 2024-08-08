@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# Ignore configuration file containing sensitive information
+config.h
