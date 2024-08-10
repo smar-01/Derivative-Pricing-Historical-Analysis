@@ -1,21 +1,25 @@
 
+
 #include <windows.h> 
 #include <sqlext.h> 
 #include <sqltypes.h> 
 #include <sql.h> 
 #include <fstream> 
 #include <iostream> 
-#include "db_config.h"
+#include "config.h" 
 
-bool databaseConnect(SQLHENV& hEnv, SQLHDBC& hDbc, const SQLWCHAR* connStr)
+bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outputFilename)
 {
+    SQLHENV hEnv;
+    SQLHDBC hDbc;
+    SQLHSTMT hStmt;
     SQLRETURN ret;
 
     // Allocate environment handle 
     if (SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv) != SQL_SUCCESS)
     {
         std::cerr << "Error allocating environment handle" << std::endl;
-        return false;
+        return -1;
     }
 
     // Set the ODBC version environment attribute 
@@ -23,7 +27,7 @@ bool databaseConnect(SQLHENV& hEnv, SQLHDBC& hDbc, const SQLWCHAR* connStr)
     {
         std::cerr << "Error setting ODBC version" << std::endl;
         SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return false;
+        return -1;
     }
 
     // Allocate connection handle 
@@ -31,7 +35,7 @@ bool databaseConnect(SQLHENV& hEnv, SQLHDBC& hDbc, const SQLWCHAR* connStr)
     {
         std::cerr << "Error allocating connection handle" << std::endl;
         SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return false;
+        return -1;
     }
 
     // Connect to the SQL Server 
@@ -40,36 +44,25 @@ bool databaseConnect(SQLHENV& hEnv, SQLHDBC& hDbc, const SQLWCHAR* connStr)
     {
         std::cerr << "Error connecting to the database" << std::endl;
         SQLFreeHandle(SQL_HANDLE_DBC, hDbc); SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return false;
+        return -1;
     }
 
-    std::cout << "Connected to SQL Server successfully." << std::endl;
-    return true;
-
-}
-
-bool executeQueryExportCSV(SQLHDBC hDbc, const SQLWCHAR* query, const char* outputFilename)
-{
-    SQLHSTMT hStmt;
-    SQLRETURN ret;
-    
     // Allocate statement handle 
     if (SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt) != SQL_SUCCESS)
     {
         std::cerr << "Error allocating statement handle" << std::endl; SQLDisconnect(hDbc);
         SQLFreeHandle(SQL_HANDLE_DBC, hDbc); SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return false;
+        return -1;
     }
 
     // SQL query to execute 
     if (SQLExecDirect(hStmt, (SQLWCHAR*)query, SQL_NTS) != SQL_SUCCESS)
     {
-        std::cerr << "Error executing SQL query" << std::endl; 
-        SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-        return false;
+        std::cerr << "Error executing SQL query" << std::endl; SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+        SQLDisconnect(hDbc); SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
+        SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
+        return -1;
     }
-
-    std::cout << "SQL query executed successfully." << std::endl;
 
     // Open a CSV file to write the output 
     std::ofstream file(outputFilename);
@@ -77,13 +70,16 @@ bool executeQueryExportCSV(SQLHDBC hDbc, const SQLWCHAR* query, const char* outp
     {
         std::cerr << "Error opening file for writing" << std::endl;
         SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-        return false;
+        SQLDisconnect(hDbc);
+        SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
+        SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
+        return -1;
     }
 
     SQLCHAR columnData[256];
     SQLLEN columnDataLen;
 
-    // Fetch the data & write it the CSV file 
+    // Fetch the data and write it to the CSV file 
     while (SQLFetch(hStmt) == SQL_SUCCESS)
     {
         for (int i = 1; ; ++i)
@@ -103,19 +99,6 @@ bool executeQueryExportCSV(SQLHDBC hDbc, const SQLWCHAR* query, const char* outp
 
     // Cleanup 
     SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-}
-
-bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outputFilename)
-{
-    SQLHENV hEnv;
-    SQLHDBC hDbc;
-
- 
-    
-
-    
-
-    // Cleanup 
     SQLDisconnect(hDbc);
     SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
     SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
@@ -123,9 +106,9 @@ bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outpu
     return true;
 }
 
-int main() 
-{ // Connection string details
-    //connStr defined in config.h
+int main()
+{ // Connection string details 
+    //connStr already defined
     const SQLWCHAR* query = L"SELECT TOP (1000) [SecurityID],[Date],[Symbol],[SymbolFlag],[Strike],[Expiration],[CallPut],[BestBid],[BestOffer],[LastTradeDate],[Volume],[OpenInterest],[SpecialSettlement],[ImpliedVolatility],[Delta],[Gamma],[Vega],[Theta],[OptionID],[AdjustmentFactor],[AMSettlement],[ContractSize],[ExpiryIndicator]FROM [IvyDB-USNew].[dbo].[OPTION_PRICE_2023_02] where SecurityID=108105 and date='2023-02-01'";
     const char* outputFilename = "output.csv";
 
@@ -133,10 +116,11 @@ int main()
     {
         std::cerr << "An error occured while fetching data from the database." << std::endl;
         return -1;
-    } else {
-        std::cout << "Data exported to " << outputFilename << " successfully." << std::endl;
+    }
+    else {
+        std::cout << "Data exported to " << outputFilename << " succccessfully." << std::endl;
         return 0;
     }
 
-    
+
 }
