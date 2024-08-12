@@ -1,9 +1,12 @@
+
 #include <windows.h> 
+#include <sqltypes.h>
 #include <sqlext.h> 
 #include <sql.h> 
 #include <fstream> 
 #include <iostream> 
 #include "DatabaseHandler.h"
+
 
 
 bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outputFilename)
@@ -17,7 +20,7 @@ bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outpu
     if (SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv) != SQL_SUCCESS)
     {
         std::cerr << "Error allocating environment handle" << std::endl;
-        return -1;
+        return false;
     }
 
     // Set the ODBC version environment attribute 
@@ -25,7 +28,7 @@ bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outpu
     {
         std::cerr << "Error setting ODBC version" << std::endl;
         SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return -1;
+        return false;
     }
 
     // Allocate connection handle 
@@ -33,7 +36,7 @@ bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outpu
     {
         std::cerr << "Error allocating connection handle" << std::endl;
         SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return -1;
+        return false;
     }
 
     // Connect to the SQL Server 
@@ -42,7 +45,7 @@ bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outpu
     {
         std::cerr << "Error connecting to the database" << std::endl;
         SQLFreeHandle(SQL_HANDLE_DBC, hDbc); SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return -1;
+        return false;
     }
 
     // Allocate statement handle 
@@ -50,7 +53,7 @@ bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outpu
     {
         std::cerr << "Error allocating statement handle" << std::endl; SQLDisconnect(hDbc);
         SQLFreeHandle(SQL_HANDLE_DBC, hDbc); SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return -1;
+        return false;
     }
 
     // SQL query to execute 
@@ -59,7 +62,7 @@ bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outpu
         std::cerr << "Error executing SQL query" << std::endl; SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
         SQLDisconnect(hDbc); SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
         SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return -1;
+        return false;
     }
 
     // Open a CSV file to write the output 
@@ -71,7 +74,7 @@ bool fetchData(const SQLWCHAR* connStr, const SQLWCHAR* query, const char* outpu
         SQLDisconnect(hDbc);
         SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
         SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return -1;
+        return false;
     }
 
     SQLCHAR columnData[256];

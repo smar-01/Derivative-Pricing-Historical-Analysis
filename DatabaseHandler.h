@@ -1,6 +1,6 @@
 #pragma once
-#include <sqltypes.h>
 #include <windows.h> 
+#include <sqltypes.h>
 #include <sqlext.h> 
 #include <sql.h> 
 #include <fstream> 

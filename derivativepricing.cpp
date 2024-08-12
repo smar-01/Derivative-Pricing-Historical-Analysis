@@ -1,31 +1,47 @@
 
 
 #include <windows.h> 
+#include <sql.h> 
 #include <sqlext.h> 
 #include <sqltypes.h> 
-#include <sql.h> 
 #include <fstream> 
 #include <iostream> 
+#include <vector>
+#include <sstream>
 #include "config.h" 
+#include "QueryParams.h"
 #include "DatabaseHandler.h"
+#include "QueryHandler.h"
 
 
 
 int main()
 { // Connection string details 
     //connStr already defined
-    const SQLWCHAR* query = L"SELECT TOP (1000) [SecurityID],[Date],[Symbol],[SymbolFlag],[Strike],[Expiration],[CallPut],[BestBid],[BestOffer],[LastTradeDate],[Volume],[OpenInterest],[SpecialSettlement],[ImpliedVolatility],[Delta],[Gamma],[Vega],[Theta],[OptionID],[AdjustmentFactor],[AMSettlement],[ContractSize],[ExpiryIndicator]FROM [IvyDB-USNew].[dbo].[OPTION_PRICE_2023_02] where SecurityID=108105 and date='2023-02-01'";
-    const char* outputFilename = "output.csv";
+    //Dates already defined
+    std::vector<std::wstring> queries = generateQueries(dates, expiries);
 
-    if (!fetchData(connStr, query, outputFilename))
+    int i = 1; // naming files, make more robust fix later
+    for (const auto& querystr : queries) 
     {
-        std::cerr << "An error occured while fetching data from the database." << std::endl;
-        return -1;
+        std::wcout << L"Executing query: " << querystr << std::endl;
+
+        const SQLWCHAR* query = querystr.c_str(); //Messy memory leakage but don't know fix yet. just changes string to sqlwchar* so it can be sent to sql db
+        std::string outputFilename = "output_" + std::to_string(i++) + ".csv";
+
+        if (!fetchData(connStr, query, outputFilename.c_str()))
+        {
+            std::wcerr << L"An error occured while fetching data from the database with query."<< std::endl;
+            //return -1; // comment out if you want to continue with errors
+        }
+        else 
+        {
+            std::cout << "Data exported to " << outputFilename << " successfully." << std::endl;
+        }
     }
-    else {
-        std::cout << "Data exported to " << outputFilename << " succccessfully." << std::endl;
-        return 0;
-    }
+
+
+    return 0;
 
 
 }
